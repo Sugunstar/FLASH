@@ -22,8 +22,10 @@ A teacher types code in a terminal (or any HTTP client) and hits **SEND**; the s
 flask_app/
 ├─ flask_app.py      # Flask server (serves HTML, provides /content & /update endpoints)
 ├─ client.py         # Terminal client for the teacher (or any HTTP POST tool)
+├─ requirements.txt  # File to download all required packages
 ├─ .env              # Configuration: URL and CLASS_TOKEN
 └─ README.md         # This file
+
 ```
 
 ---
