@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, render_template_string, request
+import os
 
 app = Flask(__name__)
 
 board = {"content": ""}
+CLASS_TOKEN = os.getenv("CLASS_TOKEN", "changeme")
 
 HTML_PAGE = """
 <!doctype html>
@@ -68,6 +70,8 @@ def get_content():
 
 @app.post("/update")
 def update_content():
+    if request.headers.get("X-Class-Token") != CLASS_TOKEN:
+        return jsonify({"error": "unauthorized"}), 401
     payload = request.get_json(silent=True) or {}
     text = payload.get("text", "")
 

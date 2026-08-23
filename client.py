@@ -5,11 +5,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SERVER_URL = os.getenv("URL")
+CLASS_TOKEN = os.getenv("CLASS_TOKEN", "changeme")
 
 
 def send_text(text):
     try:
-        response = requests.post(SERVER_URL, json={"text": text}, timeout=5) # type: ignore
+        headers = {"X-Class-Token": CLASS_TOKEN}
+        response = requests.post(SERVER_URL, json={"text": text}, headers=headers, timeout=5) # type: ignore
         response.raise_for_status()
         if text.strip() == "CLEAR":
             print("[Cleared]")
