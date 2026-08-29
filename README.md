@@ -1,13 +1,14 @@
 # FLASH – Fast Live Automated Sharing Hub
 
 **FLASH** is a minimal, real‑time code‑clipboard designed for live teaching scenarios.  
-A teacher types code in a terminal (or any HTTP client) and hits **SEND**; the snippet is instantly posted to a shared board that every student sees in their browser. The board updates every second via a lightweight polling loop, giving a near‑zero‑latency experience.
+A teacher types code in a terminal (or any HTTP client) and hits **SEND**; the snippet is instantly posted to a shared board that every student sees in their browser — complete with **automatic syntax highlighting** and language detection, giving a near‑zero‑latency, polished experience.
 
 ---
 
 ## Why FLASH?
 
 - **Instant sharing** – No manual copy‑paste; code appears on all student screens as soon as the teacher sends it.
+- **Syntax highlighting** – Highlight.js automatically detects and colours Python, JavaScript, HTML, SQL, Bash, and more.
 - **Zero‑setup for students** – They only need a web browser (or the tiny Python client) and the board URL.
 - **Simple clear/reset** – A single `CLEAR` command wipes the board for the next topic.
 - **Lightweight & dependency‑free** – Built with Flask and a few standard libraries; runs anywhere Python is available.
@@ -162,21 +163,58 @@ PythonAnywhere provides a free tier that is perfect for hosting FLASH for a clas
 
 ---
 
-## Advanced Tweaks (Optional) (for devs who want to contribute)
+## Advanced Tweaks & Roadmap
+
+### ✅ Already Implemented
+
+| Feature | Details |
+|---------|--------|
+| **Syntax highlighting** | Highlight.js (`stackoverflow-light` theme) with `highlightAuto()` for language detection. |
+| **Auto‑scroll to bottom** | Page reloads on new content, always showing the latest code at the top. |
+| **Language badge** | Top‑right pill shows the detected language after each update. |
+
+### 🔜 Planned Features
 
 | Feature | How to Add |
 |---------|------------|
-| **Replace mode** (overwrite instead of append) | Add a query parameter `?mode=replace` to `/update` and adjust logic accordingly. |
-| **Maximum board size** | After appending, trim: `if len(board["content"]) > MAX_CHARS: board["content"] = board["content"][-MAX_CHARS:]` |
-| **Persistence across restarts** | Save `board["content"]` to a file (e.g., `/tmp/board.txt`) on each update and load it at startup. |
-| **Syntax highlighting** | Include a client‑side library like Prism.js or highlight.js in the HTML and apply it to the `<pre>` after each update. |
+| **"Rooms" / Sessions** | Add a room identifier in the URL (e.g., `/room/<id>`) and maintain a dictionary of boards so multiple teachers can share the same server. |
+| **File watching in the client** | Use the `watchdog` library in `client.py` to watch a file; auto‑send whenever the teacher saves it in their editor. |
+| **Copy to Clipboard button** | Add a floating "Copy All" button in the HTML that calls `navigator.clipboard.writeText()`. |
+| **Replace mode** | Add a query parameter `?mode=replace` to `/update` and adjust logic accordingly. |
 | **Timestamps / author info** | Prefix each POST with a timestamp and optional name before appending to the board. |
 | **Dockerize** | Write a `Dockerfile` that copies the code, installs dependencies, and runs `flask_app.py`. |
-| **Multiple boards / rooms** | Add a room identifier in the URL (e.g., `/room/<id>`) and maintain a dictionary of boards. |
+| **Persistence across restarts** | Save `board["content"]` to a file (e.g., `board.txt`) on each update and load it at startup. |
+
+---
+
+## Scaling & Known Bottlenecks
+
+The current architecture is minimal by design — great for small classrooms, but there are known limitations to be aware of as usage grows.
+
+### Bottleneck A: The "Polling" Problem (Network/CPU Overload)
+With 100 students, the server receives **100 HTTP requests every second**, even when nothing has changed.
+
+- **Solution:** Replace polling with **Server-Sent Events (SSE)** or **WebSockets**. SSE is easier to implement in Flask (using generators) and cuts network traffic by ~99% since the server only pushes data when an update occurs.
+
+### Bottleneck B: In-Memory State & Multi-Worker Deployments
+`board = {"content": ""}` is a global Python dict. Under Gunicorn (multi-process), each worker has its own memory — students hitting different workers will see inconsistent boards.
+
+- **Easy fix:** Save `board["content"]` to a local file (`board.txt`) and read/write from it.
+- **Pro fix:** Use **SQLite** or **Redis** for shared, process-safe state.
+
+### Bottleneck C: Infinite Memory Growth (Browser Freeze)
+The board grows unbounded across a long session. A huge payload slows the network and can freeze older laptops.
+
+- **Solution:** Cap the board size on the server:
+  ```python
+  MAX_CHARS = 50000
+  board["content"] = (board["content"] + "\n\n" + text)[-MAX_CHARS:]
+  ```
 
 ---
 
 ## Troubleshooting
+
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
